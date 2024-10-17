@@ -127,7 +127,6 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             no_fly = 0.25
             dof_vel = -0.0
             ang_vel_xy = -0.0
-            orientation = -5.0
             orientation = -10.0
             feet_contact_forces = -5.e-3
             tracking_dphase = -1.0
