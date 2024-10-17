@@ -8,10 +8,10 @@ Rewards in bhr8tcphase:
 -0.5 (lin_vel_z)                * squared vel of base z
 0.0 (feet_air_time)             * sum of time of feet in air - 0.5
 -1.0 (dof_pos_limits)           * sum of joint pos outside soft bound (soft_dof_pos_limit * joint bound in urdf)
-0.25 (no_fly)                   * 1 for single contact, 0 otherwise
+0.25 (no_fly)                   * 1 when contact number >= 1, 0 otherwise
 -0.0 (dof_vel)                  * sum of squared joint vel
 -0.0 (ang_vel_xy)               * sum of squared droll and dpitch
--5.0 (orientation)              * sum of squared of the x and y tterm of projected_gravity
+-10.0 (orientation)             * sum of squared of the x and y tterm of projected_gravity
 -5.e-3 (feet_contact_forces)    * sum of feet contact forces out of (max_contact_force)
 -1.0 (tracking_dphase)          * squared dphase_err
 -5.e-3 (phase_regulation_force) * norm of foot force for swing phase

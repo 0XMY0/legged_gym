@@ -272,8 +272,8 @@ class BHR8TCPHASE(LeggedRobot):
 
     def _reward_no_fly(self):
         contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
-        single_contact = torch.sum(1.*contacts, dim=1)==1
-        return 1.*single_contact
+        if_contact = torch.sum(1.*contacts, dim=1) >= 1
+        return 1.*if_contact
     
     def _reward_tracking_dphase(self):
         return torch.square(self.dphase - 2)

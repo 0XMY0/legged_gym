@@ -62,15 +62,15 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'leg1_left': 0.0,
             'leg2_left': 0.0,
-            'leg3_left': -0.3,
-            'leg4_left': 0.6,
-            'leg5_left': -0.3,
+            'leg3_left': -0.4,
+            'leg4_left': 0.8,
+            'leg5_left': -0.4,
 
             'leg1_right': 0.0,
             'leg2_right': 0.0,
-            'leg3_right': -0.3,
-            'leg4_right': 0.6,
-            'leg5_right': -0.3
+            'leg3_right': -0.4,
+            'leg4_right': 0.8,
+            'leg5_right': -0.4
         }
 
     class control( LeggedRobotCfg.control ):
@@ -128,6 +128,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             dof_vel = -0.0
             ang_vel_xy = -0.0
             orientation = -5.0
+            orientation = -10.0
             feet_contact_forces = -5.e-3
             tracking_dphase = -1.0
             phase_regulation_force = -5.e-3
