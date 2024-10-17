@@ -40,6 +40,23 @@ from typing import Tuple, Dict
 from legged_gym.envs import LeggedRobot
 
 class BHR8TC(LeggedRobot):
+    def compute_observations(self):
+        self.obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel,
+                                    self.base_ang_vel  * self.obs_scales.ang_vel,
+                                    self.projected_gravity,
+                                    self.commands[:, :3] * self.commands_scale,
+                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                                    self.dof_vel * self.obs_scales.dof_vel,
+                                    self.actions
+                                    ),dim=-1)
+        # add perceptive inputs if not blind
+        if self.cfg.terrain.measure_heights:
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales.height_measurements
+            self.obs_buf = torch.cat((self.obs_buf, heights), dim=-1)
+        # add noise if needed
+        if self.add_noise:
+            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
     def _reward_no_fly(self):
         contacts = self.contact_forces[:, self.feet_indices, 2] > 0.1
         single_contact = torch.sum(1.*contacts, dim=1)==1
@@ -51,4 +68,21 @@ class BHR8TC(LeggedRobot):
         self.reset_buf = torch.any(torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1., dim=1)
         self.time_out_buf = self.episode_length_buf > self.max_episode_length # no terminal reward for time-outs
         self.reset_buf |= self.time_out_buf
-        self.uppbody_too_low_buf = (self.root_states[:, 2].unsqueeze(1) - self.measured_heights) < 0.3
+
+        # check if the robot is too low
+        mean_measured_height = torch.mean(self.measured_heights, dim=1)  # shape: (50, 1)
+        uppbody_too_low_buf = (self.root_states[:, 2] - mean_measured_height) < 0.3
+        # self.reset_buf |= uppbody_too_low_buf
+        
+        # check if the robot posture is too bad
+        base_euler = get_euler_xyz(self.base_quat)
+
+        lower_bound_roll = 1.1 * torch.ones_like(base_euler[0])
+        upper_bound_roll = 2.0 * np.pi * torch.ones_like(base_euler[0]) - 1.1 * torch.ones_like(base_euler[0])
+        upper_bound_pitch = 2.0 * np.pi * torch.ones_like(base_euler[1]) - 1.1 * torch.ones_like(base_euler[1])
+        lower_bound_pitch = 1.1 * torch.ones_like(base_euler[1])
+
+        roll_outbound_buf = (base_euler[0] > lower_bound_roll) & (base_euler[0] < upper_bound_roll)
+        pitch_outbound_buf = (base_euler[1] > lower_bound_pitch) & (base_euler[1] < upper_bound_pitch)
+        self.reset_buf |= roll_outbound_buf
+        self.reset_buf |= pitch_outbound_buf

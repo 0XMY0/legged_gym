@@ -30,34 +30,47 @@
 
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-class BHR8TCRoughCfg( LeggedRobotCfg ):
+class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
     class env( LeggedRobotCfg.env):
         num_envs = 1024
-        num_observations = 163
-        num_actions = 10
-        episode_length_s = 10.0
+        num_dofs = 10
+        num_actions = sum([
+            num_dofs,       # dof_target_vel
+            1               # delta_phase
+            ])
+        num_observations = sum([
+            3,              # base lin vel
+            3,              # base ang vel
+            3,              # projected_gravity
+            3,              # commands
+            num_dofs,       # dof_pos
+            num_dofs,       # dof_vel
+            1               # phase variable
+            ])
+        episode_length_s = 20.0
     
     class terrain( LeggedRobotCfg.terrain):
-        measured_points_x = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5] # 1mx1m rectangle (without center line)
-        measured_points_y = [-0.5, -0.4, -0.3, -0.2, -0.1, 0., 0.1, 0.2, 0.3, 0.4, 0.5]
+        mesh_type = 'plane'
+        measure_heights = False
 
     class commands( LeggedRobotCfg.commands ):
-        resampling_time = 3.0
+        resampling_time = 10.0
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 1.] # x,y,z [m]
+        rot = [0.0, 0.0, 0.0, 0.87] # x,y,z,w [quat]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'leg1_left': 0.0,
             'leg2_left': 0.0,
-            'leg3_left': -0.2,
-            'leg4_left': 0.4,
-            'leg5_left': -0.2,
+            'leg3_left': -0.3,
+            'leg4_left': 0.6,
+            'leg5_left': -0.3,
 
             'leg1_right': 0.0,
             'leg2_right': 0.0,
-            'leg3_right': -0.2,
-            'leg4_right': 0.4,
-            'leg5_right': -0.2
+            'leg3_right': -0.3,
+            'leg4_right': 0.6,
+            'leg5_right': -0.3
         }
 
     class control( LeggedRobotCfg.control ):
@@ -77,55 +90,81 @@ class BHR8TCRoughCfg( LeggedRobotCfg ):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 4
+        decimation = 20
         
     class asset( LeggedRobotCfg.asset ):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/BHR8TC/bhr8tc.urdf'
-        name = "bhr8tc"
+        name = "bhr8tcphase"
         foot_name = 'ankle'
         terminate_after_contacts_on = ['uppbody']
         flip_visual_attachments = False
         self_collisions = 1 # 1 to disable, 0 to enable...bitwise filter
 
     class domain_rand( LeggedRobotCfg.domain_rand ):
-        push_interval_s = 2.0
+        push_interval_s = 7.0
         randomize_base_mass = True
-        added_mass_range = [-3., 3.]
+        # added_mass_range = [-3., 3.]
   
     class rewards( LeggedRobotCfg.rewards ):
         soft_dof_pos_limit = 0.95
         soft_dof_vel_limit = 0.9
         soft_torque_limit = 0.9
         max_contact_force = 600.
+        # base_height_target = 1.15
+        base_height_wrt_foot_target = 0.75
+        base_height_target = 0.75
         only_positive_rewards = False
         class scales( LeggedRobotCfg.rewards.scales ):
             termination = -200.
-            tracking_ang_vel = 1.0
+            tracking_lin_vel = 1.0
+            tracking_ang_vel = 1.5
             torques = -3.e-6
             dof_acc = -2.e-7
+            action_rate = -0.01
             lin_vel_z = -0.5
-            feet_air_time = 5.
+            feet_air_time = 0.
             dof_pos_limits = -1.
             no_fly = 0.25
             dof_vel = -0.0
             ang_vel_xy = -0.0
-            feet_contact_forces = -0.
+            orientation = -5.0
+            feet_contact_forces = -5.e-3
+            tracking_dphase = -1.0
+            phase_regulation_force = -5.e-3
+            phase_regulation_vel = -1.0
+            foot_clearance = -10.0
+            feet_distancey = 1.0
+            feet_orientation = -0.3
+            feet_yaw_wrt_base = -3.0
+            base_height_wrt_foot = -0.0
+            base_height = -10.0
+            stay_alive = 0.1
 
     class sim( LeggedRobotCfg.sim ):
-        dt =  0.005
+        dt =  0.001
 
-class BHR8TCRoughCfgPPO( LeggedRobotCfgPPO ):
-    
+class BHR8TCPHASERoughCfgPPO( LeggedRobotCfgPPO ):
+
+    class policy( LeggedRobotCfgPPO.policy ):
+        actor_hidden_dims = [512, 256, 128]
+        critic_hidden_dims = [512, 256, 128]
+        activation = 'elu'
+        # only for 'ActorCriticRecurrent':
+        # rnn_type = 'lstm'
+        # rnn_hidden_size = 64
+        # rnn_num_layers = 2
+
     class runner( LeggedRobotCfgPPO.runner ):
+        policy_class_name = 'ActorCritic' # 'ActorCritic'
         run_name = ''
-        experiment_name = 'rough_bhr8tc'
+        experiment_name = 'rough_bhr8tcphase'
         num_steps_per_env = 48
 
     class algorithm( LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
         learning_rate = 1e-3
         num_learning_epochs = 5
-        num_mini_batches = 16
+        num_mini_batches = 8
         
 
 

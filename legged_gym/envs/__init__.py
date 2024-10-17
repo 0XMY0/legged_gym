@@ -40,6 +40,8 @@ from .cassie.cassie_config import CassieRoughCfg, CassieRoughCfgPPO
 from .a1.a1_config import A1RoughCfg, A1RoughCfgPPO
 from .BHR8TC.bhr8tc import BHR8TC
 from .BHR8TC.bhr8tc_config import BHR8TCRoughCfg, BHR8TCRoughCfgPPO
+from .BHR8TC.bhr8tcphase import BHR8TCPHASE
+from .BHR8TC.bhr8tcphase_config import BHR8TCPHASERoughCfg, BHR8TCPHASERoughCfgPPO
 
 import os
 
@@ -51,4 +53,5 @@ task_registry.register( "anymal_b", Anymal, AnymalBRoughCfg(), AnymalBRoughCfgPP
 task_registry.register( "a1", LeggedRobot, A1RoughCfg(), A1RoughCfgPPO() )
 task_registry.register( "cassie", Cassie, CassieRoughCfg(), CassieRoughCfgPPO() )
 task_registry.register( "bhr8tc", BHR8TC, BHR8TCRoughCfg(), BHR8TCRoughCfgPPO() )
+task_registry.register( "bhr8tcphase", BHR8TCPHASE, BHR8TCPHASERoughCfg(), BHR8TCPHASERoughCfgPPO() )
 

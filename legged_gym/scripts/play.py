@@ -37,12 +37,12 @@ from legged_gym.utils import  get_args, export_policy_as_jit, task_registry, Log
 
 import numpy as np
 import torch
-
+from pynput import keyboard
 
 def play(args):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     env_cfg.terrain.num_rows = 5
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.curriculum = False
@@ -74,9 +74,40 @@ def play(args):
     camera_direction = np.array(env_cfg.viewer.lookat) - np.array(env_cfg.viewer.pos)
     img_idx = 0
 
+    # chz
+    keyboard_commands = torch.zeros_like(env.commands)
+    def on_press(key):
+        try:
+            if key.char == 'w':
+                keyboard_commands[:, 0] += 0.33
+            elif key.char == 's':
+                keyboard_commands[:, 0] -= 0.33
+            elif key.char == 'a':
+                keyboard_commands[:, 1] += 0.33
+            elif key.char == 'd':
+                keyboard_commands[:, 1] -= 0.33
+            elif key.char == 'j':
+                keyboard_commands[:, 3] += 0.33
+            elif key.char == 'l':
+                keyboard_commands[:, 3] -= 0.33
+            elif key.char == 'k':
+                keyboard_commands[:, 3] = 0
+            elif key.char == 'q':
+                keyboard_commands[:, :] = 0
+            keyboard_commands.clip_(min=-1.0, max=1.0)
+        except AttributeError:
+            pass
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
     for i in range(10*int(env.max_episode_length)):
+        # chz
+        env.commands = keyboard_commands.clone()
+
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
+
         if RECORD_FRAMES:
             if i % 2:
                 filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', f"{img_idx}.png")
@@ -112,6 +143,9 @@ def play(args):
                     logger.log_rewards(infos["episode"], num_episodes)
         elif i==stop_rew_log:
             logger.print_rewards()
+
+    # chz
+    listener.join()
 
 if __name__ == '__main__':
     EXPORT_POLICY = True
