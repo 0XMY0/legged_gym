@@ -139,7 +139,8 @@ class BHR8TCPHASE(LeggedRobot):
             ), dim=-1)
     def _post_physics_step_callback(self):
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        self.dphase = torch.clip(self.actions[:, self.num_dof], -1, 1) + 2
+        dphase_bounds = self.cfg.control.dphase_bounds
+        self.dphase = (self.actions[:, self.num_dof] - dphase_bounds[0]) * (dphase_bounds[1] - dphase_bounds[0])
         self.phase += self.dphase * self.sim_params.dt * self.cfg.control.decimation
         self.phase = torch.fmod(self.phase, 1)
         self.base_euler = self.get_euler_xyz_clip(self.base_quat)
@@ -173,7 +174,7 @@ class BHR8TCPHASE(LeggedRobot):
                                     self.base_ang_vel  * self.obs_scales.ang_vel,
                                     self.base_euler,
                                     self.commands[:, :3] * self.commands_scale,
-                                    (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                                    (self.dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                     self.dof_vel * self.obs_scales.dof_vel,
                                     self.phase.unsqueeze(1)
                                     ),dim=-1)
@@ -186,12 +187,15 @@ class BHR8TCPHASE(LeggedRobot):
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
     
     def _compute_torques(self, actions):
-        actions_scaled = actions[:, 0: self.num_dof] * self.cfg.control.action_scale
+        actions_scaled = actions[:, 0: self.num_dof] * self.cfg.control.action_scale # not used
+        # cast to [-action_outscale, 1 + action_outscale]
+        action_outscaled = actions[:, 0: self.num_dof] * (1.0 + 2 * self.cfg.control.action_outscale) - self.cfg.control.action_outscale
+
         control_type = self.cfg.control.control_type
         if control_type=="P":
-            # clip actions to joint limits
-            actions_scaled2 = torch.clip(actions_scaled + self.default_dof_pos, self.dof_pos_limits[:, 0], self.dof_pos_limits[:, 1])
-            torques = self.p_gains*(actions_scaled2 - self.dof_pos) - self.d_gains*self.dof_vel
+            # casted to actual joint bounds
+            action_outscaled_casted = action_outscaled * (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) + self.dof_pos_limits[:, 0]
+            torques = self.p_gains*(action_outscaled_casted - self.dof_pos) - self.d_gains*self.dof_vel
         elif control_type=="V":
             torques = self.p_gains*(actions_scaled - self.dof_vel) - self.d_gains*(self.dof_vel - self.last_dof_vel)/self.sim_params.dt
         elif control_type=="T":
