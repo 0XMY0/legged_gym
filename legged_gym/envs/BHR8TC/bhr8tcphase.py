@@ -225,19 +225,23 @@ class BHR8TCPHASE(LeggedRobot):
         mirrored_base_euler[:, 2] = -mirrored_base_euler[:, 2]
         mirrored_commands = self.commands.clone()
         mirrored_commands[:, 1: 3] = -mirrored_commands[:, 1: 3]
-        mirrored_dof_pos = self.dof_pos - self.default_dof_pos
-        mirrored_dof_pos[:, 0: 5] = self.dof_pos[:, 5: 10]
-        mirrored_dof_pos[:, 5: 10] = self.dof_pos[:, 0: 5]
+        mirrored_dof_pos = self.dof_pos.clone()
+        mirrored_dof_pos[:, 0: 2] = -self.dof_pos[:, 5: 7]
+        mirrored_dof_pos[:, 2: 5] = self.dof_pos[:, 7: 10]
+        mirrored_dof_pos[:, 5: 7] = -self.dof_pos[:, 0: 2]
+        mirrored_dof_pos[:, 7: 10] = self.dof_pos[:, 2: 5]
         mirrored_dof_vel = self.dof_vel.clone()
-        mirrored_dof_vel[:, 0: 5] = self.dof_vel[:, 5: 10]
-        mirrored_dof_vel[:, 5: 10] = self.dof_vel[:, 0: 5]
+        mirrored_dof_vel[:, 0: 2] = -self.dof_vel[:, 5: 7]
+        mirrored_dof_vel[:, 2: 5] = self.dof_vel[:, 7: 10]
+        mirrored_dof_vel[:, 5: 7] = -self.dof_vel[:, 0: 2]
+        mirrored_dof_vel[:, 7: 10] = self.dof_vel[:, 2: 5]
         mirrored_phase = (self.phase + 0.5) % 1
 
         mirrored_obs_buf = torch.cat((  mirrored_base_lin_vel * self.obs_scales.lin_vel,
                                         mirrored_base_ang_vel  * self.obs_scales.ang_vel,
                                         mirrored_base_euler,
                                         mirrored_commands[:, :3] * self.commands_scale,
-                                        mirrored_dof_pos * self.obs_scales.dof_pos,
+                                        (mirrored_dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                         mirrored_dof_vel * self.obs_scales.dof_vel,
                                         mirrored_phase.unsqueeze(1)
                                         ),dim=-1)
@@ -245,8 +249,10 @@ class BHR8TCPHASE(LeggedRobot):
     
     def mirror_actions(self, actions):
         mirrored_actions = actions.clone()
-        mirrored_actions[:, 0: 5] = actions[:, 5: 10]
-        mirrored_actions[:, 5: 10] = actions[:, 0: 5]
+        mirrored_actions[:, 0: 2] = -actions[:, 5: 7]
+        mirrored_actions[:, 2: 5] = actions[:, 7: 10]
+        mirrored_actions[:, 5: 7] = -actions[:, 0: 2]
+        mirrored_actions[:, 7: 10] = actions[:, 2: 5]
         return mirrored_actions
 
     def _reward_phase_regulation_force(self):
@@ -275,7 +281,7 @@ class BHR8TCPHASE(LeggedRobot):
         q_conj = torch.cat((-self.base_quat[:, :3], self.base_quat[:, 3].unsqueeze(1)), dim=-1)
         pl_b = quat_apply_yaw(q_conj, pl_w - pbody)
         pr_b = quat_apply_yaw(q_conj, pr_w - pbody)
-        return torch.exp(-100.0 * torch.square(pl_b[:, 1] - pr_b[:, 1] - 0.2))
+        return torch.exp(-30.0 * torch.square(pl_b[:, 1] - pr_b[:, 1] - 0.2))
     
     def _reward_feet_orientation(self):
         return torch.sum(torch.square(self.footl_euler[:, :2]), dim=1) + torch.sum(torch.square(self.footr_euler[:, :2]), dim=1)

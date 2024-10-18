@@ -108,6 +108,28 @@ def play(args):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
 
+        # chz
+        # print obs and actions to file
+        logfilepath = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'data')
+        obs_data = ','.join(map(str, obs[robot_index].cpu().numpy()))
+        actions_data = ','.join(map(str, actions[robot_index].cpu().detach().numpy()))
+                            
+        mirrored_obs = env.mirror_obs(obs)
+        actions_mirrored_obs = policy(mirrored_obs.detach())
+        mirrored_actions = env.mirror_actions(actions)
+        symmetry_loss = torch.sum(torch.square(actions_mirrored_obs - mirrored_actions), dim=1)
+        symmetry_loss_numpy = symmetry_loss.cpu().detach().numpy().tolist()
+        # if(symmetry_loss_numpy[0] > 0.5):
+        #     print("Symmetry loss: ", symmetry_loss_numpy[0])
+        
+        # Write to the files
+        if i == 0:
+            with open(logfilepath + '/chzdata.csv', 'w') as f:
+                f.write('velx,vely,velz,angvelx,angvely,angvelz,base_euler_x,base_euler_y,base_euler_z,command_x,command_y,command_dyaw,pos_l1,pos_l2,pos_l3,pos_l4,pos_l5,pos_r1,pos_r2,pos_r3,pos_r4,pos_r5,vel_l1,vel_l2,vel_l3,vel_l4,vel_l5,vel_r1,vel_r2,vel_r3,vel_r4,vel_r5,phase,act_l1,act_l2,act_l3,act_l4,act_l5,act_r1,act_r2,act_r3,act_r4,act_r5,act_dphase,symloss\n')
+
+        with open(logfilepath + '/chzdata.csv', 'a') as f:
+            f.write(obs_data + ',' + actions_data + ',' + str(symmetry_loss_numpy[0]) + '\n')
+
         if RECORD_FRAMES:
             if i % 2:
                 filename = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name, 'exported', 'frames', f"{img_idx}.png")

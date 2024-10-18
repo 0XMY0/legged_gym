@@ -17,7 +17,7 @@ Rewards in bhr8tcphase:
 -5.e-3 (phase_regulation_force) * norm of foot force for swing phase
 -1.0 (phase_regulation_vel)     * norm of foot speed in stance phase
 -10.0 (foot_clearance)          * squared err of foot z tracking sin() in swing phase
-1.0 (feet_distancey)            * exp(-100.0 * squared feet distance in y - 0.2)
+1.0 (feet_distancey)            * exp(-30.0 * squared feet distance in y - 0.2)
 -0.3 (feet_orientation)         * sum of squared error of feet roll and pitch
 -3.0 (feet_yaw_wrt_base)        * squared error of feet yaw wrt base yaw
 -0.0 (base_height_wrt_foot)     * squared error of base height wrt foot - (base_height_wrt_foot_target)
