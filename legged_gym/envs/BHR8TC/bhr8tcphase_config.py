@@ -58,7 +58,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
 
     class init_state( LeggedRobotCfg.init_state ):
         pos = [0.0, 0.0, 1.] # x,y,z [m]
-        rot = [0.0, 0.0, 0.0, 0.87] # x,y,z,w [quat]
+        rot = [0.0, 0.0, 0.0, 0.85] # x,y,z,w [quat]
         default_joint_angles = { # = target angles [rad] when action = 0.0
             'leg1_left': 0.0,
             'leg2_left': 0.0,

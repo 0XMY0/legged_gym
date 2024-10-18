@@ -140,7 +140,7 @@ class BHR8TCPHASE(LeggedRobot):
     def _post_physics_step_callback(self):
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         dphase_bounds = self.cfg.control.dphase_bounds
-        self.dphase = (self.actions[:, self.num_dof] - dphase_bounds[0]) * (dphase_bounds[1] - dphase_bounds[0])
+        self.dphase = (self.actions[:, self.num_dof] + 1) / 2 * (dphase_bounds[1] - dphase_bounds[0]) + dphase_bounds[0]
         self.phase += self.dphase * self.sim_params.dt * self.cfg.control.decimation
         self.phase = torch.fmod(self.phase, 1)
         self.base_euler = self.get_euler_xyz_clip(self.base_quat)
@@ -188,9 +188,8 @@ class BHR8TCPHASE(LeggedRobot):
     
     def _compute_torques(self, actions):
         actions_scaled = actions[:, 0: self.num_dof] * self.cfg.control.action_scale # not used
-        # cast to [-action_outscale, 1 + action_outscale]
-        action_outscaled = actions[:, 0: self.num_dof] * (1.0 + 2 * self.cfg.control.action_outscale) - self.cfg.control.action_outscale
-
+        # cast from [-1, 1] to [-action_outscale, 1 + action_outscale]
+        action_outscaled = (actions[:, 0: self.num_dof] + 1) / 2 * (1 + 2 * self.cfg.control.action_outscale) - self.cfg.control.action_outscale
         control_type = self.cfg.control.control_type
         if control_type=="P":
             # casted to actual joint bounds
@@ -203,6 +202,16 @@ class BHR8TCPHASE(LeggedRobot):
         else:
             raise NameError(f"Unknown controller type: {control_type}")
         return torch.clip(torques, -self.torque_limits, self.torque_limits)
+    
+    def _reset_dofs(self, env_ids):
+        # reset with fixed positions
+        self.dof_pos[env_ids] = ((self.dof_pos_limits[:, 0] + self.dof_pos_limits[:, 1]) / 2).unsqueeze(0).expand(len(env_ids), -1)
+        self.dof_vel[env_ids] = 0.
+
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+        self.gym.set_dof_state_tensor_indexed(self.sim,
+                                              gymtorch.unwrap_tensor(self.dof_state),
+                                              gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
     
     def mirror_obs(self, obs):
         # Create the mirrored components
