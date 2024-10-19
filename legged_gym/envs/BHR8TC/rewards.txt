@@ -22,4 +22,4 @@ Rewards in bhr8tcphase:
 -3.0 (feet_yaw_wrt_base)        * squared error of feet yaw wrt base yaw
 -0.0 (base_height_wrt_foot)     * squared error of base height wrt foot - (base_height_wrt_foot_target)
 -5.0 (base_height)              * squared error of base height - mean of measured heights
-0.1 (stay_alive)                * 1
+0.8 (stay_alive)                * 1 for current episode length < 50, 0 otherwise

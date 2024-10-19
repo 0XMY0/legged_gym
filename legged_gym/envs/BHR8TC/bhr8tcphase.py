@@ -38,6 +38,8 @@
 # self.rigid_state: Tensor num_envs * num_body * 13, data of the rigid bodies
 # self.phase_swingl: Tensor num_envs, phase variable for left foot (1 for swing phase, 0 for stance phase)
 # self.phase_swingr: Tensor num_envs, phase variable for right foot (1 for swing phase, 0 for stance phase)
+# self.commandsy: Tensor num_envs, extra y velocity command with lipm
+# self.commandsy_bound: Tensor num_envs, bound for self.commandsy, only change wrt height and desired phase
 
 from time import time
 import numpy as np
@@ -125,6 +127,8 @@ class BHR8TCPHASE(LeggedRobot):
         self.footr_euler = torch.zeros(self.num_envs, 3, device=self.device)
         self.phase_swingl = torch.zeros(self.num_envs, device=self.device)
         self.phase_swingr = torch.zeros(self.num_envs, device=self.device)
+        self.commandsy = torch.zeros(self.num_envs, device=self.device)
+        self.commandsy_bound = torch.zeros(self.num_envs, device=self.device)
 
     def reset_idx(self, env_ids):
         super().reset_idx(env_ids)
@@ -173,12 +177,18 @@ class BHR8TCPHASE(LeggedRobot):
         super()._resample_commands(env_ids)
         dphase_bounds = self.cfg.control.dphase_bounds
         self.commands[env_ids, 4] = torch_rand_float(dphase_bounds[0], dphase_bounds[1], (len(env_ids), 1), device=self.device).squeeze(1)
+        # fitted bound for vy from MATLAB: f(x, y) = 0.9761 - 1.106 * x - 0.2678 * y + 0.531 * x^2 + 0.06972 * x * y + 0.03481 * y^2, where x = height, y = frequency, f = vy bound
+        x = self.cfg.rewards.base_height_target - 0.2
+        y = self.commands[env_ids, 4]
+        self.commandsy_bound[env_ids] = 0.9761 - 1.106 * x - 0.2678 * y + 0.531 * x**2 + 0.06972 * x * y + 0.03481 * y**2
 
     def compute_observations(self):
         self.obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel,
                                     self.base_ang_vel  * self.obs_scales.ang_vel,
                                     self.base_euler,
-                                    self.commands[:, :3] * self.commands_scale,
+                                    self.commands[:, 0].unsqueeze(1) * self.commands_scale[0],
+                                    self.commandsy.unsqueeze(1) * self.commands_scale[1],
+                                    self.commands[:, 2].unsqueeze(1) * self.commands_scale[2],
                                     ((self.commands[:, 4] - self.cfg.control.dphase_bounds[0]) / (self.cfg.control.dphase_bounds[1] - self.cfg.control.dphase_bounds[0])).unsqueeze(1),
                                     (self.dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                     self.dof_vel * self.obs_scales.dof_vel,
@@ -230,6 +240,7 @@ class BHR8TCPHASE(LeggedRobot):
         mirrored_base_euler[:, 0] = -mirrored_base_euler[:, 0]
         mirrored_base_euler[:, 2] = -mirrored_base_euler[:, 2]
         mirrored_commands = self.commands.clone()
+        mirrored_commands[:, 1] = self.commandsy.clone()
         mirrored_commands[:, 1: 3] = -mirrored_commands[:, 1: 3]
         mirrored_dof_pos = self.dof_pos.clone()
         mirrored_dof_pos[:, 0: 2] = -self.dof_pos[:, 5: 7]
@@ -246,7 +257,9 @@ class BHR8TCPHASE(LeggedRobot):
         mirrored_obs_buf = torch.cat((  mirrored_base_lin_vel * self.obs_scales.lin_vel,
                                         mirrored_base_ang_vel  * self.obs_scales.ang_vel,
                                         mirrored_base_euler,
-                                        mirrored_commands[:, :3] * self.commands_scale,
+                                        mirrored_commands[:, 0].unsqueeze(1) * self.commands_scale[0],
+                                        mirrored_commands[:, 1].unsqueeze(1) * self.commands_scale[1],
+                                        mirrored_commands[:, 2].unsqueeze(1) * self.commands_scale[2],
                                         ((mirrored_commands[:, 4] - self.cfg.control.dphase_bounds[0]) / (self.cfg.control.dphase_bounds[1] - self.cfg.control.dphase_bounds[0])).unsqueeze(1),
                                         (mirrored_dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                         mirrored_dof_vel * self.obs_scales.dof_vel,
@@ -262,6 +275,17 @@ class BHR8TCPHASE(LeggedRobot):
         mirrored_actions[:, 7: 10] = actions[:, 2: 5]
         return mirrored_actions
 
+    def _reward_tracking_lin_vel(self):
+        # use a linear function of the bound to approximate desired, and clip the desired vy for the first timesteps
+        episode_time = self.episode_length_buf * self.cfg.control.decimation * self.sim_params.dt
+        commandy_scale = torch.where(episode_time * self.commands[:, 4] < 0.5, 0.0, 
+            torch.where(episode_time * self.commands[:, 4] > 1, 1.0, 
+            episode_time * self.commands[:, 4] * 2 - 1))    
+        self.commandsy = commandy_scale * (torch.where(self.phase < 0.5, -self.commandsy_bound + (self.phase - 0) * 4 * self.commandsy_bound, self.commandsy_bound - (self.phase - 0.5) * 4 * self.commandsy_bound)) + self.commands[:, 1]
+        #lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        lin_vel_error = torch.square(self.commands[:, 0] - self.base_lin_vel[:, 0]) + torch.square(self.commandsy - self.base_lin_vel[:, 1])
+        return torch.exp(-lin_vel_error/self.cfg.rewards.tracking_sigma)
+    
     def _reward_phase_regulation_force(self):
         forcel = torch.norm(self.contact_forces[:, self.feet_indices[0], :], dim=1)
         forcer = torch.norm(self.contact_forces[:, self.feet_indices[1], :], dim=1)
@@ -311,7 +335,7 @@ class BHR8TCPHASE(LeggedRobot):
         return torch.square(base_height_wrt_foot - self.cfg.rewards.base_height_wrt_foot_target)
     
     def _reward_stay_alive(self):
-        return torch.ones(self.num_envs, device=self.device)
+        return self.episode_length_buf < 50
     
     def check_termination(self):
         """ Check if environments need to be reset

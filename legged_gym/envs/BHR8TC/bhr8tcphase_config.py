@@ -91,7 +91,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
         # action scale: target angle = actionScale * action + defaultAngle
         action_scale = 0.5
         action_outscale = 0.2 # actions are casted into [-action_outscale, 1 + action_outscale] for possible need of wild actions
-        dphase_bounds = [1.0, 3.3] # the motion frequency bounds
+        dphase_bounds = [0.5, 2.5] # the motion frequency bounds
         # decimation: Number of control action updates @ sim DT per policy DT
         decimation = 20
         
@@ -141,7 +141,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             feet_yaw_wrt_base = -3.0
             base_height_wrt_foot = -0.0
             base_height = -10.0
-            stay_alive = 0.1
+            stay_alive = 0.8
 
     class normalization( LeggedRobotCfg.normalization ):
         class obs_scales ( LeggedRobotCfg.normalization.obs_scales ):
