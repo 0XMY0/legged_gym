@@ -42,7 +42,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             3,              # base lin vel
             3,              # base ang vel
             3,              # projected_gravity
-            3,              # commands
+            4,              # commands
             num_dofs,       # dof_pos
             num_dofs,       # dof_vel
             1               # phase variable
@@ -54,6 +54,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
         measure_heights = False
 
     class commands( LeggedRobotCfg.commands ):
+        num_commands = 5
         resampling_time = 10.0
 
     class init_state( LeggedRobotCfg.init_state ):
@@ -131,7 +132,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             ang_vel_xy = -0.0
             orientation = -10.0
             feet_contact_forces = -5.e-3
-            tracking_dphase = -1.0
+            tracking_dphase = -1.3
             phase_regulation_force = -5.e-3
             phase_regulation_vel = -1.0
             foot_clearance = -10.0
@@ -143,7 +144,7 @@ class BHR8TCPHASERoughCfg( LeggedRobotCfg ):
             stay_alive = 0.1
 
     class normalization( LeggedRobotCfg.normalization ):
-        class obs_scales:
+        class obs_scales ( LeggedRobotCfg.normalization.obs_scales ):
             dof_vel = 0.1
             height_measurements = 5.0
 

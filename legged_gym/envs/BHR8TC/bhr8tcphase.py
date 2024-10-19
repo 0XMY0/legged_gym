@@ -169,11 +169,17 @@ class BHR8TCPHASE(LeggedRobot):
         
         super()._post_physics_step_callback()
 
+    def _resample_commands(self, env_ids):
+        super()._resample_commands(env_ids)
+        dphase_bounds = self.cfg.control.dphase_bounds
+        self.commands[env_ids, 4] = torch_rand_float(dphase_bounds[0], dphase_bounds[1], (len(env_ids), 1), device=self.device).squeeze(1)
+
     def compute_observations(self):
         self.obs_buf = torch.cat((  self.base_lin_vel * self.obs_scales.lin_vel,
                                     self.base_ang_vel  * self.obs_scales.ang_vel,
                                     self.base_euler,
                                     self.commands[:, :3] * self.commands_scale,
+                                    ((self.commands[:, 4] - self.cfg.control.dphase_bounds[0]) / (self.cfg.control.dphase_bounds[1] - self.cfg.control.dphase_bounds[0])).unsqueeze(1),
                                     (self.dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                     self.dof_vel * self.obs_scales.dof_vel,
                                     self.phase.unsqueeze(1)
@@ -241,6 +247,7 @@ class BHR8TCPHASE(LeggedRobot):
                                         mirrored_base_ang_vel  * self.obs_scales.ang_vel,
                                         mirrored_base_euler,
                                         mirrored_commands[:, :3] * self.commands_scale,
+                                        ((mirrored_commands[:, 4] - self.cfg.control.dphase_bounds[0]) / (self.cfg.control.dphase_bounds[1] - self.cfg.control.dphase_bounds[0])).unsqueeze(1),
                                         (mirrored_dof_pos - self.dof_pos_limits[:, 0]) / (self.dof_pos_limits[:, 1] - self.dof_pos_limits[:, 0]) * self.obs_scales.dof_pos,
                                         mirrored_dof_vel * self.obs_scales.dof_vel,
                                         mirrored_phase.unsqueeze(1)
@@ -295,7 +302,7 @@ class BHR8TCPHASE(LeggedRobot):
         return 1.*if_contact
     
     def _reward_tracking_dphase(self):
-        return torch.square(self.dphase - 2)
+        return torch.square(self.dphase - self.commands[:, 4])
     
     def _reward_base_height_wrt_foot(self):
         base_height = self.root_states[:, 2]

@@ -76,6 +76,7 @@ def play(args):
 
     # chz
     keyboard_commands = torch.zeros_like(env.commands)
+    keyboard_commands[:, 4] = 2.0
     def on_press(key):
         try:
             if key.char == 'w':
@@ -94,7 +95,14 @@ def play(args):
                 keyboard_commands[:, 3] = 0
             elif key.char == 'q':
                 keyboard_commands[:, :] = 0
-            keyboard_commands.clip_(min=-1.0, max=1.0)
+            elif key.char == 'u':
+                keyboard_commands[:, 4] += 0.33
+            elif key.char == 'o':
+                keyboard_commands[:, 4] -= 0.33
+            elif key.char == 'i':
+                keyboard_commands[:, 4] = 2.0
+            keyboard_commands[:, :4].clip_(min=-1.0, max=1.0)
+            keyboard_commands[:, 4].clip_(min=env.cfg.control.dphase_bounds[0], max=env.cfg.control.dphase_bounds[1])
         except AttributeError:
             pass
 
@@ -125,7 +133,7 @@ def play(args):
         # Write to the files
         if i == 0:
             with open(logfilepath + '/chzdata.csv', 'w') as f:
-                f.write('velx,vely,velz,angvelx,angvely,angvelz,base_euler_x,base_euler_y,base_euler_z,command_x,command_y,command_dyaw,pos_l1,pos_l2,pos_l3,pos_l4,pos_l5,pos_r1,pos_r2,pos_r3,pos_r4,pos_r5,vel_l1,vel_l2,vel_l3,vel_l4,vel_l5,vel_r1,vel_r2,vel_r3,vel_r4,vel_r5,phase,act_l1,act_l2,act_l3,act_l4,act_l5,act_r1,act_r2,act_r3,act_r4,act_r5,act_dphase,symloss\n')
+                f.write('velx,vely,velz,angvelx,angvely,angvelz,base_euler_x,base_euler_y,base_euler_z,command_x,command_y,command_dyaw,command_dphase,pos_l1,pos_l2,pos_l3,pos_l4,pos_l5,pos_r1,pos_r2,pos_r3,pos_r4,pos_r5,vel_l1,vel_l2,vel_l3,vel_l4,vel_l5,vel_r1,vel_r2,vel_r3,vel_r4,vel_r5,phase,act_l1,act_l2,act_l3,act_l4,act_l5,act_r1,act_r2,act_r3,act_r4,act_r5,act_dphase,symloss\n')
 
         with open(logfilepath + '/chzdata.csv', 'a') as f:
             f.write(obs_data + ',' + actions_data + ',' + str(symmetry_loss_numpy[0]) + '\n')
