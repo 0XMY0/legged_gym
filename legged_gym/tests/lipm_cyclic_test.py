@@ -161,25 +161,22 @@ def fitdata2(x, y):
 # plt.show()
 
 # test generatedata
-data = generatedata()
-data = np.array(data)
+# data = generatedata()
+# data = np.array(data)
 
 # test _read_and_fit_data
-# data = np.loadtxt('data.csv', delimiter=',')
-# x = data[:, :3]
-# y1 = data[:, 3]
-# idx = np.argsort(x[:, 0])
-# x = x[idx]
-# y1 = y1[idx]
-# param = fitdata2(x, y1)
-# # plot
-# y1_fit = _fit_function2(x, *param[0])
-# plt.figure(figsize=(10, 6))
-# plt.plot(y1, label='Raw Data', color='blue')
-# plt.plot(y1_fit, label='Fitted Curve', color='red', linestyle='--')
-# plt.xlabel('Index')
-# plt.ylabel('Data')
-# plt.title('Comparison of Raw Data and Fitted Curve')
-# plt.legend()
-# plt.grid()
-# plt.show()
+data = np.loadtxt('data.csv', delimiter=',')
+x = data[:, :3]
+y1 = data[:, 3]
+param = fitdata2(x, y1)
+# plot
+y1_fit = _fit_function2(x, *param[0])
+plt.figure(figsize=(10, 6))
+plt.plot(y1, label='Raw Data', color='blue')
+plt.plot(y1_fit, label='Fitted Curve', color='red', linestyle='--')
+plt.xlabel('Index')
+plt.ylabel('Data')
+plt.title('Comparison of Raw Data and Fitted Curve')
+plt.legend()
+plt.grid()
+plt.show()

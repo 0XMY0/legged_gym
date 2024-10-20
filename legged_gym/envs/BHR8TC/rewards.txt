@@ -8,18 +8,18 @@ Rewards in bhr8tcphase:
 -0.5 (lin_vel_z)                * squared vel of base z
 0.0 (feet_air_time)             * sum of time of feet in air - 0.5
 -1.0 (dof_pos_limits)           * sum of joint pos outside soft bound (soft_dof_pos_limit * joint bound in urdf)
-0.25 (no_fly)                   * 1 when contact number >= 1, 0 otherwise
+0.0 (no_fly)                    * 1 when contact number >= 1, 0 otherwise
 -0.0 (dof_vel)                  * sum of squared joint vel
 -0.0 (ang_vel_xy)               * sum of squared droll and dpitch
 -10.0 (orientation)             * sum of squared of the x and y tterm of projected_gravity
 -5.e-3 (feet_contact_forces)    * sum of feet contact forces out of (max_contact_force)
 -1.3 (tracking_dphase)          * squared dphase_err
--5.e-3 (phase_regulation_force) * norm of foot force for swing phase
--1.0 (phase_regulation_vel)     * norm of foot speed in stance phase
+-10.e-3 (phase_regulation_force)* norm of foot force for swing phase
+-2.0 (phase_regulation_vel)     * norm of foot speed in stance phase
 -10.0 (foot_clearance)          * squared err of foot z tracking sin() in swing phase
 1.0 (feet_distancey)            * exp(-30.0 * squared feet distance in y - 0.2)
 -0.3 (feet_orientation)         * sum of squared error of feet roll and pitch
 -3.0 (feet_yaw_wrt_base)        * squared error of feet yaw wrt base yaw
 -0.0 (base_height_wrt_foot)     * squared error of base height wrt foot - (base_height_wrt_foot_target)
 -5.0 (base_height)              * squared error of base height - mean of measured heights
-0.8 (stay_alive)                * 1 for current episode length < 50, 0 otherwise
+0.8 (stay_alive)                * 1 for current episode length < 100, 0 otherwise
